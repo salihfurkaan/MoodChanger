@@ -6,6 +6,83 @@ Generates 45 days of realistic wearable sensor data covering:
 - Training sessions  |  - Recovery days
 
 Schema: timestamp | HR | HRV | accel | temp | phase | day_type
+
+SYSTEM DOCUMENTATION
+====================
+
+1. DATA STRUCTURE
+-----------------
+Raw Wearable Data (raw_wearable_data.csv):
+- timestamp: datetime (10-min intervals)
+- date: date string
+- day_index: integer (1-45)
+- day_type: 'training', 'recovery', 'rest'
+- phase: 'sleep', 'wake_rest', 'morning_training', 'active', 'lunch_rest', 'evening_training', 'rest'
+- HR_bpm: heart rate (bpm)
+- HRV_ms: heart rate variability (ms)
+- accel_g: acceleration (g)
+- accel_label: 'very_low', 'low', 'moderate', 'high'
+- skin_temp_C: skin temperature (°C)
+- SpO2_pct: blood oxygen saturation (%)
+- fatigue_factor: simulated fatigue multiplier
+
+Daily Aggregated Data (synthetic_daily_data.csv):
+- date: date
+- day_index: integer
+- day_category: 'training', 'recovery', 'rest'
+- resting_HR: average resting HR
+- HRV_ms: average HRV
+- sleep_duration_h: total sleep hours
+- training_load_AU: arbitrary units of training load
+- soreness_score: 1-10 scale
+- injury_event: 0/1 binary
+- temp_deviation_C: temperature deviation
+
+Analytics Pipeline Output (analytics_pipeline_output.csv):
+- All daily fields plus derived metrics and states
+
+2. PROCESSING PIPELINE
+----------------------
+1. Data Generation: synthetic_data.py generates daily records
+2. Preprocessing: preprocessing.py cleans and aggregates raw data
+3. Feature Extraction: pipeline.py computes intermediate features
+4. Derived States: readiness score, recovery state, ACWR, injury risk
+5. Dashboard: streamlit_app.py visualizes results
+6. Reporting: generate_report.py creates PDF reports
+
+3. DERIVED STATE MODELS
+------------------------
+Readiness Score (0-100):
+- Formula: 0.4 * normalized_HRV + 0.3 * sleep_quality + 0.3 * (1 - fatigue_load)
+- Labels: high (>=75), moderate (>=50), low (<50)
+
+Recovery State:
+- Based on HRV trend, sleep duration, temperature deviation
+- States: optimal, partial, poor
+
+ACWR (Acute:Chronic Workload Ratio):
+- Acute: 7-day rolling average load
+- Chronic: 28-day rolling average load
+- Labels: optimal (0.8-1.3), high (1.3-1.5), overreaching (>1.5), undertraining (<0.8)
+
+Injury Risk Score (0-100):
+- Based on ACWR, soreness, readiness
+- Labels: low (<30), moderate (30-60), high (>60)
+
+4. SCORING LOGIC
+----------------
+- Readiness: Weighted combination of physiological markers
+- Recovery: Multi-factor classification
+- Load Balance: Ratio-based thresholds
+- Injury Risk: Regression on load and recovery indicators
+
+5. LIMITATIONS OF SYNTHETIC DATA
+---------------------------------
+- Generated from statistical models, not real physiological data
+- Fatigue profiles are simplified simulations
+- No real-world variability or external factors
+- Correlations may not reflect actual athlete responses
+- For demonstration purposes only; not for clinical use
 """
 
 import pandas as pd
