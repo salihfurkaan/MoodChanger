@@ -80,6 +80,8 @@ def preprocess_pipeline(df=None):
     return df
 
 if __name__ == "__main__":
+    import os
     clean_df = preprocess_pipeline()
-    clean_df.to_csv("/mnt/user-data/outputs/clean_wearable_data.csv", index=False)
+    output_dir = os.path.dirname(__file__)
+    clean_df.to_csv(os.path.join(output_dir, "clean_wearable_data.csv"), index=False)
     print("Saved clean_wearable_data.csv")

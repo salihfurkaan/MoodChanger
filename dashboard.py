@@ -17,10 +17,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.gridspec import GridSpec
 import warnings
+import os
 warnings.filterwarnings("ignore")
 
 # ── Load pipeline output ──────────────────────────────────────────
-df = pd.read_csv("/analytics_pipeline_output.csv")
+output_dir = os.path.dirname(__file__)
+df = pd.read_csv(os.path.join(output_dir, "analytics_pipeline_output.csv"))
 df["date"] = pd.to_datetime(df["date"])
 
 COLORS = {
@@ -79,7 +81,7 @@ for i, row in df[df["injury_event"] == 1].iterrows():
     ax.axvline(i, color="#f43f5e", alpha=0.6, linewidth=1.5, linestyle=":")
     ax.text(i, 102, "⚡", ha="center", fontsize=9, color="#f43f5e")
 plt.tight_layout()
-fig1.savefig("/mnt/user-data/outputs/chart1_readiness.png", dpi=150, bbox_inches="tight")
+fig1.savefig(os.path.join(output_dir, "chart1_readiness.png"), dpi=150, bbox_inches="tight")
 plt.close()
 
 # ─────────────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ ax2.set_xticklabels([df["date"].iloc[i].strftime("%b %d") for i in range(0, len(
 patches = [mpatches.Patch(color=v, label=k) for k, v in recovery_colors.items()]
 ax2.legend(handles=patches, loc="upper right", fontsize=8, framealpha=0.2)
 plt.tight_layout()
-fig2.savefig("/mnt/user-data/outputs/chart2_sleep_recovery.png", dpi=150, bbox_inches="tight")
+fig2.savefig(os.path.join(output_dir, "chart2_sleep_recovery.png"), dpi=150, bbox_inches="tight")
 plt.close()
 
 # ─────────────────────────────────────────────────────────────────
@@ -148,7 +150,7 @@ patches = [
 ]
 ax2.legend(handles=patches, fontsize=8, framealpha=0.2, loc="upper right")
 plt.tight_layout()
-fig3.savefig("/mnt/user-data/outputs/chart3_load_balance.png", dpi=150, bbox_inches="tight")
+fig3.savefig(os.path.join(output_dir, "chart3_load_balance.png"), dpi=150, bbox_inches="tight")
 plt.close()
 
 # ─────────────────────────────────────────────────────────────────
@@ -176,10 +178,10 @@ ax.set_title("Injury Risk Score Timeline  (▼ = actual injury event)", fontsize
 ax.legend(fontsize=8, framealpha=0.2)
 ax.grid(True, axis="y")
 plt.tight_layout()
-fig4.savefig("/mnt/user-data/outputs/chart4_injury_risk.png", dpi=150, bbox_inches="tight")
+fig4.savefig(os.path.join(output_dir, "chart4_injury_risk.png"), dpi=150, bbox_inches="tight")
 plt.close()
 
-print("✅ All 4 charts saved to /mnt/user-data/outputs/")
+print(f"✅ All 4 charts saved to {output_dir}")
 
 # ─────────────────────────────────────────────────────────────────
 # SUMMARY STATS

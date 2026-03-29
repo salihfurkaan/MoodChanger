@@ -113,8 +113,10 @@ def generate_daily_records():
     return pd.DataFrame(records)
 
 if __name__ == "__main__":
+    import os
     df = generate_daily_records()
-    df.to_csv("/mnt/user-data/outputs/synthetic_daily_data.csv", index=False)
+    output_dir = os.path.dirname(__file__)
+    df.to_csv(os.path.join(output_dir, "synthetic_daily_data.csv"), index=False)
     print(f"Generated {len(df)} daily records")
     print(df[["date","day_category","resting_HR","HRV_ms","sleep_duration_h","injury_event"]].head(10).to_string())
     print(f"\nInjury events: {df['injury_event'].sum()} / {len(df)} days")

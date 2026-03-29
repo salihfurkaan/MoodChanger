@@ -21,6 +21,10 @@ import io
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from patients_config import create_patient, get_demo_patient
+from data_generator import generate_patient_data
+from pipeline import run_full_pipeline
+
 # ══════════════════════════════════════════════════════════════════
 # PAGE CONFIG
 # ══════════════════════════════════════════════════════════════════
@@ -66,29 +70,58 @@ st.markdown("""
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "analytics_pipeline_output.csv")
 RAW_CACHE  = os.path.join(os.path.dirname(__file__), "raw_wearable_data.csv")
 
-@st.cache_data(show_spinner="Running analytics pipeline…")
-def load_pipeline_data():
+def regenerate_patient_data(patient_profile):
+    """Generate synthetic data and run pipeline for a patient."""
+    output_dir = os.path.dirname(__file__)
+    
+    # Generate synthetic data tailored to patient
+    generate_patient_data(patient_profile, days=45, output_dir=output_dir)
+    
+    # Run the pipeline to create analytics
+    df = run_full_pipeline()
+    df["date"] = pd.to_datetime(df["date"])
+    df.to_csv(CACHE_FILE, index=False)
+    
+    return df
+
+def load_pipeline_data(force_reload=False):
+    """Load pipeline data, optionally forcing a refresh."""
+    # If file doesn't exist and not forcing reload with known patient,
+    # generate with demo patient
+    if not os.path.exists(CACHE_FILE) and not force_reload:
+        demo = get_demo_patient()
+        return regenerate_patient_data(demo)
+    
+    # Otherwise load from CSV (either fresh from update or cached)
     if os.path.exists(CACHE_FILE):
         df = pd.read_csv(CACHE_FILE)
         df["date"] = pd.to_datetime(df["date"])
         return df
-    from pipeline import run_full_pipeline
-    df = run_full_pipeline()
-    df["date"] = pd.to_datetime(df["date"])
+    
+    # Fallback: generate with demo if somehow CSV wasn't created
+    demo = get_demo_patient()
+    return regenerate_patient_data(demo)
+
+def load_raw_data(force_reload=False):
+    """Load raw sensor data, optionally forcing a refresh."""
+    if force_reload or not os.path.exists(RAW_CACHE):
+        return None
+    
+    df = pd.read_csv(RAW_CACHE)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
     return df
 
-@st.cache_data(show_spinner="Loading raw sensor data…")
-def load_raw_data():
-    if os.path.exists(RAW_CACHE):
-        df = pd.read_csv(RAW_CACHE)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
-        return df
-    return None
+# Initialize session state for forcing data reload
+if "force_data_reload" not in st.session_state:
+    st.session_state.force_data_reload = False
 
-df  = load_pipeline_data()
-raw = load_raw_data()
+# Load data (with potential force reload if patient was just updated)
+df  = load_pipeline_data(force_reload=st.session_state.force_data_reload)
+raw = load_raw_data(force_reload=st.session_state.force_data_reload)
 
-@st.cache_data
+# Reset the reload flag after loading
+st.session_state.force_data_reload = False
+
 def generate_pdf_report(pipeline_df, raw_df):
     if pipeline_df.empty:
         return None
@@ -417,10 +450,71 @@ def lc(v):
 with st.sidebar:
     st.markdown("##  Wellness Analytics")
     st.markdown("---")
+    
+    # Patient entry form
     st.markdown("**Patient Profile**")
-    st.markdown("**ID:** SYN-2024-001")
-    st.markdown("**Name:** Alex Mora")
-    st.markdown("**Sport:** Triathlon · Age 28")
+    
+    # Initialize session state for patient data
+    if "patient_data" not in st.session_state:
+        demo = get_demo_patient()
+        st.session_state.patient_data = demo.copy()
+    
+    # Input fields
+    col1, col2 = st.columns(2)
+    with col1:
+        patient_id = st.text_input(
+            "Patient ID",
+            value=st.session_state.patient_data.get("id", "SYN-2024-001"),
+            placeholder="e.g., SYN-2024-001"
+        )
+        age = st.number_input("Age", min_value=20, max_value=80, 
+                             value=st.session_state.patient_data.get("age", 28))
+        resting_hr = st.number_input("Resting HR (bpm)", min_value=30, max_value=120,
+                                    value=st.session_state.patient_data.get("resting_hr_baseline", 52))
+    
+    with col2:
+        name = st.text_input(
+            "Name",
+            value=st.session_state.patient_data.get("name", "Alex Mora"),
+            placeholder="e.g., John Doe"
+        )
+        sex = st.selectbox("Sex", ["M", "F"], 
+                          index=0 if st.session_state.patient_data.get("sex", "M") == "M" else 1)
+        hrv = st.number_input("HRV Baseline (ms)", min_value=20, max_value=200,
+                             value=st.session_state.patient_data.get("hrv_baseline", 68))
+    
+    sport = st.text_input("Sport", 
+                         value=st.session_state.patient_data.get("sport", "Triathlon"),
+                         placeholder="e.g., Triathlon")
+    sleep_h = st.number_input("Sleep Baseline (hours)", min_value=4.0, max_value=12.0, step=0.5,
+                             value=float(st.session_state.patient_data.get("sleep_baseline_h", 7.5)))
+    
+    # Save button
+    if st.button("💾 Load/Update Patient", use_container_width=True):
+        try:
+            patient = create_patient(patient_id, name, age, sex, sport, resting_hr, hrv, sleep_h)
+            st.session_state.patient_data = patient
+            
+            # Regenerate data for this patient
+            with st.spinner(f"Generating data for {name}..."):
+                regenerate_patient_data(patient)
+            
+            # Set flag to force data reload on next render
+            st.session_state.force_data_reload = True
+            st.success(f"✓ Patient updated: {name} | Data regenerated")
+            st.rerun()
+        except ValueError as e:
+            st.error(f"Invalid input: {e}")
+    
+    # Display current patient info
+    if st.session_state.patient_data:
+        st.divider()
+        st.markdown("**Current Patient**")
+        selected_patient = st.session_state.patient_data
+        st.markdown(f"**ID:** {selected_patient['id']}")
+        st.markdown(f"**Name:** {selected_patient['name']}")
+        st.markdown(f"**Sport:** {selected_patient['sport']} · Age {selected_patient['age']}")
+    
     st.markdown("---")
     st.markdown("**Date Range**")
     d_min = df["date"].min().date()
@@ -439,6 +533,9 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Mood & Wellness Analytics Pipeline\nSynthetic data — demo only")
 
+# Get selected patient from session state
+selected_patient = st.session_state.get("patient_data", get_demo_patient())
+
 # Apply filters
 fdf = df[
     (df["date"].dt.date >= start_d) &
@@ -453,7 +550,7 @@ st.markdown("#  Athlete Wellness & Mood Analytics Dashboard")
 st.markdown(
     f"**{len(fdf)} days** analysed &nbsp;·&nbsp; "
     f"{fdf['date'].min().strftime('%b %d')} – {fdf['date'].max().strftime('%b %d, %Y')} "
-    f"&nbsp;·&nbsp; Patient SYN-2024-001 (Alex Mora)"
+    f"&nbsp;·&nbsp; Patient {selected_patient['id']} ({selected_patient['name']})"
 )
 st.markdown("---")
 

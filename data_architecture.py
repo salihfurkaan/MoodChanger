@@ -203,6 +203,8 @@ def simulate_wearable_data():
     return pd.DataFrame(records)
 
 if __name__ == "__main__":
+    import os
     df = simulate_wearable_data()
-    df.to_csv("/mnt/user-data/outputs/raw_wearable_data.csv", index=False)
+    output_dir = os.path.dirname(__file__)
+    df.to_csv(os.path.join(output_dir, "raw_wearable_data.csv"), index=False)
     print(f"Generated {len(df):,} records | {df['date'].nunique()} days")
