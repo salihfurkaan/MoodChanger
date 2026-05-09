@@ -1,53 +1,38 @@
-def compute_relative_powers(alpha, beta, theta):
+import numpy as np
+from scipy.signal import welch
+from config import BANDS, SFREQ, EPSILON
+
+
+def compute_band_powers(window):
     """
-    Compute normalized (relative) band powers.
-    Returns tuple: (rel_alpha, rel_beta, rel_theta)
+    window: (channels, samples)
+    returns: dict per channel
     """
-    total = alpha + beta + theta
+    features = []
 
-    if total == 0:
-        return 0, 0, 0
+    for ch_data in window:
+        freqs, psd = welch(ch_data, fs=SFREQ, nperseg=256)
 
-    rel_alpha = alpha / total
-    rel_beta = beta / total
-    rel_theta = theta / total
+        band_powers = {}
 
-    return rel_alpha, rel_beta, rel_theta
+        total_power = np.sum(psd)
+
+        for band, (low, high) in BANDS.items():
+            idx = (freqs >= low) & (freqs <= high)
+            power = np.sum(psd[idx])
+            band_powers[band] = power
+
+        # Relative powers
+        for band in band_powers:
+            band_powers[f"rel_{band}"] = band_powers[band] / (total_power + EPSILON)
+
+        features.append(band_powers)
+
+    return features
 
 
-def compute_focus_score(alpha, beta, theta):
+def compute_focus_score(band_dict):
     """
-    Compute focus score using beta vs (alpha + theta).
-    More stable than beta/alpha.
+    Beta / (Alpha + Theta)
     """
-    denom = alpha + theta
-
-    if denom == 0:
-        return 0
-
-    return beta / denom
-
-
-def classify_state(alpha, beta, theta):
-    """
-    Classify mental state based on relative band powers.
-    This is a heuristic (not clinical).
-    """
-
-    rel_alpha, rel_beta, rel_theta = compute_relative_powers(alpha, beta, theta)
-
-    # Relaxed: alpha dominates
-    if rel_alpha > 0.45:
-        return "Relaxed"
-
-    # Highly active: beta strongly dominates
-    elif rel_beta > 0.6:
-        return "Highly Active"
-
-    # Theta-heavy (could indicate drowsiness)
-    elif rel_theta > 0.4:
-        return "Drowsy"
-
-    # Otherwise balanced state
-    else:
-        return "Neutral"
+    return band_dict["beta"] / (band_dict["alpha"] + band_dict["theta"] + EPSILON)
