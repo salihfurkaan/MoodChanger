@@ -1,0 +1,67 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+ENV/
+env/
+virtualenv/
+
+
+build/
+dist/
+*.egg-info/
+
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.cache/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+pyrightconfig.json
+
+# IDEs / editors
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# --- OS / misc ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+
+.env
+.env.*
+!.env.example
+
+data/
+datasets/
+dataset/
+logs/
+runs/
+
+*.pt
+*.pth
+
+*.h5
+*.keras
+
+output/
+outputs/
+predictions/
+prediction/
+model/
+models/
+
+*.ipynb
