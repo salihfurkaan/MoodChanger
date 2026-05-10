@@ -13,5 +13,10 @@ fastapi
 uvicorn
 
 pywt
-
 torch
+
+# Optional — for real Muse integration later:
+# pylsl>=1.16          # Lab Streaming Layer (Muse over bluetooth)
+# muselsl>=2.1         # Muse LSL bridge
+# bleak>=0.21          # BLE backend for muselsl
+ 
